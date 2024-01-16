@@ -29,9 +29,8 @@ class Tensor:
 
         self.shape = self.data.shape
 
-        if requires_grad:
-            self.grad = Tensor(data=np.zeros(self.shape))
-            self.grad_func:Callable[[None], None] = lambda: None
+        self.grad = Tensor(data=np.zeros(self.data.shape)) if requires_grad else None
+        self.grad_func:Callable[[None], None] = lambda: None if requires_grad else None
 
     def __getitem__(self, idx):
         return self.data[idx]
@@ -40,7 +39,7 @@ class Tensor:
         return f'Tensor(data={self.data}, requires_grad={self.requires_grad})'
 
     def __add__(self, other:'Tensor') -> 'Tensor':
-        pass
+        return tensor_add(self, other)
 
     def backward(self, grad:'Tensor'=None) -> None:
         """
@@ -55,7 +54,7 @@ class Tensor:
         assert self.requires_grad, "Called backward on a Tensor with requires_grad set to False."
 
         if grad is None:
-            assert self.shape == (), "backward with grad=None should only be called on 0-dimensional Tensors."
+            assert self.shape == (), "Called backward with grad=None on non-0-dim Tensor."
             self.grad = Tensor(1)
         else:
             self.grad = grad
@@ -64,12 +63,13 @@ class Tensor:
 
     def zero_grad(self) -> None:
         """
-        Sets the grad attribute of every Tensor in the computation graph to zero.
+        Sets the gradient of every Tensor in the computation graph to zero.
         """
 
-        self.grad = 0
-        for child in self.children:
-            child.zero_grad()
+        if self.grad:
+            self.grad.data = np.zeros_like(self.grad.data)
+            for child in self.children:
+                child.zero_grad()
 
     def sum(self) -> 'Tensor':
         """
@@ -125,7 +125,7 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
                  out_requires_grad,
                  out_op,
                  out_children)
-    
+
     def grad_func() -> None:
         """
         Let f(x) be a scalar-valued function and let x = out = tensor_add(t1, t2).
@@ -153,7 +153,7 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
             grad = out.grad.data*np.ones_like(out.grad.data)
             excess_dims = len(grad.shape) - len(t1.shape) # len(t1.shape) <= len(out.shape)
 
-            # Sum out excess dims.
+            # Sum out excess dims
             if excess_dims > 0:
                 for _ in range(excess_dims):
                     grad = np.sum(grad, axis=0)
@@ -169,7 +169,7 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
             grad = out.grad.data*np.ones_like(out.grad.data)
             excess_dims = len(grad.shape) - len(t2.shape) # len(t1.shape) <= len(out.shape)
 
-            # Sum out excess dims.
+            # Sum out excess dims
             if excess_dims > 0:
                 for _ in range(excess_dims):
                     grad = np.sum(grad, axis=0)
