@@ -42,7 +42,7 @@ class Tensor:
     def __add__(self, other:'Tensor') -> 'Tensor':
         return tensor_add(self, other)
 
-    def __neg__(self, other:'Tensor') -> 'Tensor':
+    def __sub__(self, other:'Tensor') -> 'Tensor':
         return tensor_sub(self, other)
 
     def __pow__(self, a:float) -> 'Tensor':
@@ -474,7 +474,7 @@ def relu(t:'Tensor') -> 'Tensor':
                  out_requires_grad,
                  out_op,
                  out_children)
-    
+
     def grad_func() -> None:
         """
         Let f(x) be a scalar-valued function and let x = out = relu(t). 
@@ -492,8 +492,3 @@ def relu(t:'Tensor') -> 'Tensor':
     out.grad_func = grad_func
 
     return out
-
-if __name__=='__main__':
-    t1 = Tensor([[1,2,3], [4,5,6]], requires_grad=True)
-    t2 = tensor_sum(t1)
-    t2.backward()
