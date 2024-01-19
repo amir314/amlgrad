@@ -109,8 +109,9 @@ def tensor_sum(t:'Tensor') -> 'Tensor':
         simply a tensor of ones with shape t.shape.
         """
 
-        t.grad.data += out.grad.data * np.ones_like(t.grad.data)
-        t.grad_func()
+        if t.requires_grad:
+            t.grad.data += out.grad.data * np.ones_like(t.grad.data)
+            t.grad_func()
 
     out.grad_func = grad_func
 
@@ -356,6 +357,48 @@ def tensor_matmul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     out.grad_func = grad_func
 
     return out
+
+def tensor_pow(t:'Tensor', a:float) -> 'Tensor':
+    """
+    Calculates the element-wise power of a Tensor to a float.
+    """
+
+    out_data = t.data ** a
+    out_requires_grad = t.requires_grad
+    out_op = '**'
+    out_children = set([t])
+
+    out = Tensor(out_data,
+                 out_requires_grad,
+                 out_op,
+                 out_children)
+
+    def grad_func() -> None:
+        """
+        Let f(x) be a scalar-valued function and let x = out = tensor_pow(t, a).
+        Then, by the chain rule:
+            - df/dt = df/d(out)*d(out)/dt.
+
+        The first factor is stored in out's grad attribute, the second gets calculated 
+        in t.grad_func. If g(x) = x ** a, then g'(x) = a * (x ** (a-1)) and hence
+        d(out)/dt = a * ( t.data ** (a-1) ).
+        """
+
+        if t.requires_grad:
+            t.grad.data += out.grad.data * ( a * ( t.data ** (a-1) ) ) if not a == 0 else 0
+            t.grad_func()
+
+    out.grad_func = grad_func
+
+    return out
+
+def relu(t:'Tensor') -> 'Tensor':
+    """
+    Applies the ReLU (Rectified Linear Unit) function to a Tensor element-wise.
+    The ReLU function is defined as ReLU(x) = max(x, 0).
+    """
+
+    pass
 
 if __name__=='__main__':
     t1 = Tensor([[1,2,3], [4,5,6]], requires_grad=True)
