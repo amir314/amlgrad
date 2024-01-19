@@ -42,6 +42,12 @@ class Tensor:
     def __add__(self, other:'Tensor') -> 'Tensor':
         return tensor_add(self, other)
 
+    def __neg__(self, other:'Tensor') -> 'Tensor':
+        return tensor_sub(self, other)
+
+    def __pow__(self, a:float) -> 'Tensor':
+        return tensor_pow(self, a)
+
     def __mul__(self, other:'Tensor') -> 'Tensor':
         return tensor_mul(self, other)
 
@@ -103,7 +109,7 @@ def tensor_sum(t:'Tensor') -> 'Tensor':
         """
         Let f(x) be a scalar-valued function and let x = out = tensor_sum(t). 
         Then, by the chain rule:
-            - df/dt = df/d(out)*d(out)/dt.
+            - df/dt = df/d(out) * d(out)/dt.
 
         The first factor is stored in out's grad attribute, the second factor is 
         simply a tensor of ones with shape t.shape.
@@ -119,7 +125,7 @@ def tensor_sum(t:'Tensor') -> 'Tensor':
 
 def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Adds two Tensors element-wise.
+    Adds up two Tensors element-wise.
     """
 
     out_data = t1.data + t2.data
@@ -136,7 +142,7 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
         """
         Let f(x) be a scalar-valued function and let x = out = tensor_add(t1, t2).
         Then, by the chain rule:
-            - df/dt1 = df/d(out)*d(out)/dt1.
+            - df/dt1 = df/d(out) * d(out)/dt1.
 
         The first factor is stored in out's grad attribute, the second gets calculated 
         in t1.grad_func.
@@ -196,9 +202,70 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
     return out
 
+def tensor_sub(t1: 'Tensor', t2:'Tensor') -> 'Tensor':
+    """
+    Subracts two Tensors from each other element-wise.
+    """
+
+    out_data = t1.data - t2.data
+    out_requires_grad = t1.requires_grad or t2.requires_grad
+    out_op = '-'
+    out_children = set([t1, t2])
+
+    out = Tensor(out_data,
+                 out_requires_grad,
+                 out_op,
+                 out_children)
+
+    def grad_func() -> None:
+        """
+        The logic here is the same to how it is for tensor_add, except, of course,
+        a slight difference in the derivative d(out)/dt2 because of the minus sign.
+        """
+
+        if t1.requires_grad:
+            grad = out.grad.data * np.ones_like(out.grad.data)
+            excess_dims = len(grad.shape) - len(t1.shape) # len(t1.shape) <= len(out.shape)
+
+            # Sum out excess dims
+            if excess_dims > 0:
+                for _ in range(excess_dims):
+                    grad = np.sum(grad, axis=0)
+
+            # Sum over all dimensions that were broadcasted
+            for dim, n in enumerate(t1.shape):
+                if grad.shape[dim] - n > 0:
+                    grad = np.sum(grad, axis=dim, keepdims=True)
+
+            t1.grad.data += grad
+
+        if t2.requires_grad:
+            grad = out.grad.data * -1 * np.ones_like(out.grad.data)
+            excess_dims = len(grad.shape) - len(t2.shape) # len(t2.shape) <= len(out.shape)
+
+            # Sum out excess dims
+            if excess_dims > 0:
+                for _ in range(excess_dims):
+                    grad = np.sum(grad, axis=0)
+
+            # Sum across all dimensions that were broadcasted
+            for dim, n in enumerate(t2.shape):
+                if grad.shape[dim] - n > 0:
+                    grad = np.sum(grad, axis=dim, keepdims=True)
+
+            t2.grad.data += grad
+
+        for child in out.children:
+            if child.requires_grad:
+                child.grad_func()
+
+    out.grad_func = grad_func
+
+    return out
+
 def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Multiplies two Tensors element-wise.
+    Multiplies two Tensors with each other element-wise.
     """
 
     out_data = t1.data * t2.data
@@ -215,7 +282,7 @@ def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
         """
         Let f(x) be a scalar-valued function and let x = out = tensor_mul(t1, t2).
         Then, by the chain rule:
-            - df/dt1 = df/d(out)*d(out)/dt1.
+            - df/dt1 = df/d(out) * d(out)/dt1.
 
         The first factor is stored in out's grad attribute, the second gets calculated 
         in t1.grad_func.
@@ -398,7 +465,33 @@ def relu(t:'Tensor') -> 'Tensor':
     The ReLU function is defined as ReLU(x) = max(x, 0).
     """
 
-    pass
+    out_data = t.data * (t.data > 0)
+    out_requires_grad = t.requires_grad
+    out_op = 'ReLU'
+    out_children = set([t])
+
+    out = Tensor(out_data,
+                 out_requires_grad,
+                 out_op,
+                 out_children)
+    
+    def grad_func() -> None:
+        """
+        Let f(x) be a scalar-valued function and let x = out = relu(t). 
+        Then, by the chain rule:
+            - df/dt = df/d(out) * d(out)/dt.
+
+        The first factor is stored in out's grad attribute, the second factor is 
+        simply a tensor of ones wherever t is positive and 0's else.
+        """
+
+        if t.requires_grad:
+            t.grad.data += (t.data > 0)
+            t.grad_func()
+
+    out.grad_func = grad_func
+
+    return out
 
 if __name__=='__main__':
     t1 = Tensor([[1,2,3], [4,5,6]], requires_grad=True)
