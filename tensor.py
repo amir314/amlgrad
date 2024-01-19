@@ -86,7 +86,7 @@ class Tensor:
 
 def tensor_sum(t:'Tensor') -> 'Tensor':
     """
-    Sums up all the entries in t and returns a 0-dimensional Tensor.
+    Sums up all the entries in a Tensor and returns a 0-dimensional Tensor.
     """
 
     out_data = t.data.sum()
@@ -106,8 +106,7 @@ def tensor_sum(t:'Tensor') -> 'Tensor':
             - df/dt = df/d(out)*d(out)/dt.
 
         The first factor is stored in out's grad attribute, the second factor is 
-        simply a tensor of ones with shape t.shape and gets accumulated to t's 
-        grad attribute.
+        simply a tensor of ones with shape t.shape.
         """
 
         t.grad.data += out.grad.data * np.ones_like(t.grad.data)
@@ -119,7 +118,7 @@ def tensor_sum(t:'Tensor') -> 'Tensor':
 
 def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Adds two Tensors element-wise and returns the resulting Tensor.
+    Adds two Tensors element-wise.
     """
 
     out_data = t1.data + t2.data
@@ -138,19 +137,19 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
         Then, by the chain rule:
             - df/dt1 = df/d(out)*d(out)/dt1.
 
-        The first factor is stored in out's grad attribute, the second
-        in t1's grad attribute.
-        The way the second factor is handled, depends on whether or not
-        numpy's broadcasting is employed when adding up the data
+        The first factor is stored in out's grad attribute, the second gets calculated 
+        in t1.grad_func.
+        The way the second factor is handled depends on whether or not
+        numpy's broadcasting is employed, when adding up the data
         of t1 and t2:
             - If t1.shape == t2.shape, then t1.grad.data is simply
             np.ones_like(t1).
             - If, say, t1.shape = (1, something) and t2.shape = (n, something),
             then broadcasting is employed. Thus, a change of dx in one entry of
-            t1 causes a change of dx in n entries of out = tensor_add(t1, t2). 
-            As a consequence, after the resulting Tensor gets fed into f, a change of dx 
+            t1 causes a change of dx in n entries of out = tensor_add(t1, t2).
+            As a consequence, after the resulting Tensor gets fed into f, a change of dx
             in an entry of t1 results in a change of n*dx in f.
-            We deal with this by summing across all dimensions of out.grad.data,
+            We deal with this by summing across all dimensions of out,
             in which broadcasting was employed.
 
         The t2 case is analogous.
@@ -198,7 +197,7 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
 def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Multiplies two Tensors element-wise and returns the resulting Tensor.
+    Multiplies two Tensors element-wise.
     """
 
     out_data = t1.data * t2.data
@@ -217,10 +216,10 @@ def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
         Then, by the chain rule:
             - df/dt1 = df/d(out)*d(out)/dt1.
 
-        The first factor is stored in out's grad attribute, the second
-        in t1's grad attribute.
-        The way the second factor is handled, depends on whether or not
-        numpy's broadcasting is employed when adding up the data
+        The first factor is stored in out's grad attribute, the second gets calculated 
+        in t1.grad_func.
+        The way the second factor is handled depends on whether or not
+        numpy's broadcasting is employed, when multiplying up the data
         of t1 and t2:
             - If t1.shape == t2.shape, then t1.grad.data is simply
             t2.data.
@@ -230,7 +229,7 @@ def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
             a2 from t2. Then, a change of dx in a1 causes a change of dx*a2 in n 
             entries of out. As a consequence, after out gets fed into f, a 
             change of dx in a1 results in a change of n*dx*a2 in f.
-            We deal with this by summing across all dimensions of out.grad.data,
+            We deal with this by summing across all dimensions of out,
             in which broadcasting was employed.
 
         The t2 case is analogous.
@@ -276,6 +275,87 @@ def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
     return out
 
+def tensor_matmul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
+    """
+    Calculates the matrix-product of two Tensors. Expects Tensors of dimension
+    greater than or equal to 1 and such that the last dimension of t1 is
+    the same as the second-to-last of t2.
+    """
+
+    out_data = t1.data @ t2.data
+    out_requires_grad = t1.requires_grad or t2.requires_grad
+    out_op = '@'
+    out_children = set([t1, t2])
+
+    out = Tensor(out_data,
+                 out_requires_grad,
+                 out_op,
+                 out_children)
+
+    def grad_func() -> None:
+        """
+        Let f(x) be a scalar-valued function and let x = out = tensor_matmul(t1, t2).
+        Then, by the chain rule:
+            - df/dt1 = df/d(out) @ transpose(d(out)/dt1).
+
+        The first factor is stored in out's grad attribute, the second gets calculated 
+        in t1.grad_func.
+        The way the second factor is handled depends on whether or not
+        numpy's broadcasting is employed, when calculating the matrix-product
+        of t1.data and t2.data.
+
+        Let's first focus on 1d- and 2d-Tensors (i.e. matrices).
+            - If t1.shape == (n, k) and t2.shape == (k, m), then out.shape = (n, m)
+            and d(out)/dt1 = np.transpose(t2.data).
+            - If t1.shape == (k,) and t2.shape == (k, m), then out.shape = (1, m) and,
+            again, d(out)/dt1 = np.transpose(t2.data).
+
+        If (at least) one of the Tensors has dimension > 2, then broadcasting is employed
+        and we need to sum out/across the broadcasted dimensions, similarly to how we
+        do for the other tensor operations like tensor_mul and tensor_add.
+
+        The t2 case is similar. TODO: Explain t2 case in some detail.
+        """
+
+        if t1.requires_grad:
+            grad = out.grad.data @ np.swapaxes(t2.data, -1, -2) # grad.shape[-2:] = t1.shape[-2:]
+            excess_dims = len(grad.shape) - len(t1.shape)
+
+            # Sum out excess dims
+            if excess_dims > 0:
+                for _ in range(excess_dims):
+                    grad = np.sum(grad, axis=0)
+
+            # Sum over all dimensions that were broadcasted
+            for dim, n in enumerate(t1.shape):
+                if grad.shape[dim] - n > 0:
+                    grad = np.sum(grad, axis=dim, keepdims=True)
+
+            t1.grad.data += grad
+
+        if t2.requires_grad:
+            grad = np.swapaxes(t1.data, -1, -2) @ out.grad.data # grad.shape[-2:] = t2.shape[-2:]
+            excess_dims = len(grad.shape) - len(t2.shape)
+
+            # Sum out excess dims
+            if excess_dims > 0:
+                for _ in range(excess_dims):
+                    grad = np.sum(grad, axis=0)
+
+            # Sum over all dimensions that were broadcasted
+            for dim, n in enumerate(t2.shape):
+                if grad.shape[dim] - n > 0:
+                    grad = np.sum(grad, axis=dim, keepdims=True)
+
+            t2.grad.data += grad
+
+        for child in out.children:
+            if child.requires_grad:
+                child.grad_func()
+
+    out.grad_func = grad_func
+
+    return out
 
 if __name__=='__main__':
     t1 = Tensor([[1,2,3], [4,5,6]], requires_grad=True)
