@@ -7,10 +7,10 @@ class Tensor:
     """
     This class implements the Tensor, which essentially wraps data
     into a numpy nd-array and tracks computations between
-    Tensors through the 'children' and 'op' attributes,
-    which builds up a 'directed acyclic computation graph' (DAG).
-    This allows differentiation of 0-dimensional Tensors
-    (e.g. as the output of a loss functions) with respect
+    Tensors through the 'children' and 'op' attributes, through
+    which a 'directed acyclic computation graph' (DAG) is built
+    up internally. This allows differentiation of 0-dimensional 
+    Tensors (e.g. as the output of a loss functions) with respect
     to all the Tensors before it in the DAG (e.g. parameters
     of a neural network), by calling the 'backward' method.
     These derivatives get stored in the respective Tensor's
@@ -29,6 +29,7 @@ class Tensor:
 
         self.shape = self.data.shape
         self.dtype = self.data.dtype
+        self.size = self.data.size
 
         self.grad = Tensor(data=np.zeros(self.data.shape)) if requires_grad else None
         self.grad_func:Callable[[None], None] = lambda: None if requires_grad else None
@@ -50,6 +51,16 @@ class Tensor:
 
     def __mul__(self, other:'Tensor') -> 'Tensor':
         return tensor_mul(self, other)
+
+    def relu(self) -> 'Tensor':
+        """
+        Applies the ReLU (Rectified Linear Unit) function to a Tensor element-wise
+        and returns the resulting Tensor.
+
+        The ReLU function is defined as ReLU(x) = max(x, 0).
+        """
+
+        return tensor_relu(self)
 
     def backward(self, grad:'Tensor'=None) -> None:
         """
@@ -84,15 +95,25 @@ class Tensor:
 
     def sum(self) -> 'Tensor':
         """
-        Sums up all the entries of a Tensor and returns a 0-dimensional Tensor.
+        Sums up all the entries of a Tensor and returns the resulting
+        0-dimensional Tensor.
         """
 
         return tensor_sum(self)
 
+    def mean(self) -> 'Tensor':
+        """
+        Returns the mean of all values in the Tensor and returns
+        the resulting 0-dimensional Tensor.
+        """
+
+        return Tensor(1/self.size)*self.sum()
+
 
 def tensor_sum(t:'Tensor') -> 'Tensor':
     """
-    Sums up all the entries in a Tensor and returns a 0-dimensional Tensor.
+    Sums up all the entries in a Tensor and returns the resulting 
+    0-dimensional Tensor.
     """
 
     out_data = t.data.sum()
@@ -125,7 +146,7 @@ def tensor_sum(t:'Tensor') -> 'Tensor':
 
 def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Adds up two Tensors element-wise.
+    Adds up two Tensors element-wise and returns the resulting Tensor.
     """
 
     out_data = t1.data + t2.data
@@ -204,7 +225,8 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
 def tensor_sub(t1: 'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Subracts two Tensors from each other element-wise.
+    Subracts two Tensors from each other element-wise
+    and returns the resulting Tensor.
     """
 
     out_data = t1.data - t2.data
@@ -265,7 +287,8 @@ def tensor_sub(t1: 'Tensor', t2:'Tensor') -> 'Tensor':
 
 def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Multiplies two Tensors with each other element-wise.
+    Multiplies two Tensors with each other element-wise
+    and returns the resulting Tensor.
     """
 
     out_data = t1.data * t2.data
@@ -345,9 +368,9 @@ def tensor_mul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
 def tensor_matmul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
-    Calculates the matrix-product of two Tensors. Expects Tensors of dimension
-    greater than or equal to 1 and such that the last dimension of t1 is
-    the same as the second-to-last of t2.
+    Calculates the matrix-product of two Tensors and returns the resulting Tensor.
+    Expects Tensors of dimension greater than or equal to 1 and such that the
+    last dimension of t1 is the same as the second-to-last of t2.
     """
 
     out_data = t1.data @ t2.data
@@ -427,7 +450,8 @@ def tensor_matmul(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
 def tensor_pow(t:'Tensor', a:float) -> 'Tensor':
     """
-    Calculates the element-wise power of a Tensor to a float.
+    Calculates the element-wise power of a Tensor to a float
+    and returns the resulting Tensor.
     """
 
     out_data = t.data ** a
@@ -459,9 +483,11 @@ def tensor_pow(t:'Tensor', a:float) -> 'Tensor':
 
     return out
 
-def relu(t:'Tensor') -> 'Tensor':
+def tensor_relu(t:'Tensor') -> 'Tensor':
     """
-    Applies the ReLU (Rectified Linear Unit) function to a Tensor element-wise.
+    Applies the ReLU (Rectified Linear Unit) function to a Tensor element-wise
+    and returns the resulting Tensor.
+
     The ReLU function is defined as ReLU(x) = max(x, 0).
     """
 
