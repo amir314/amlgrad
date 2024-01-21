@@ -43,7 +43,7 @@ class NeuralNet():
     def __init__(self, layers:List[Layer]=None) -> None:
         self.layers = [] if layers is None else layers
 
-    def parameters(self) -> Generator[Tensor]:
+    def parameters(self) -> Generator[Tensor, None, None]:
         for layer in self.layers:
             for param in layer.params.values():
                 yield param
