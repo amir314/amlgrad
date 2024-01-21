@@ -1,4 +1,4 @@
-from amlgrad.tensor import Tensor
+from tensor import Tensor
 
 
 class Loss():
