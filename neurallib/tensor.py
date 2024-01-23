@@ -32,7 +32,7 @@ class Tensor:
         self.size = self.data.size
 
         self.grad = Tensor(data=np.zeros(self.data.shape)) if requires_grad else None
-        self.grad_func:Callable[[None], None] = lambda: None if requires_grad else None
+        self.grad_func:Callable[[None], None] = lambda: None
 
     def __getitem__(self, idx):
         return self.data[idx]
@@ -223,7 +223,7 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
     return out
 
-def tensor_sub(t1: 'Tensor', t2:'Tensor') -> 'Tensor':
+def tensor_sub(t1:'Tensor', t2:'Tensor') -> 'Tensor':
     """
     Subracts two Tensors from each other element-wise
     and returns the resulting Tensor.
