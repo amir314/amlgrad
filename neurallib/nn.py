@@ -13,16 +13,10 @@ class Layer():
     of layers.
     """
 
-    def __init__(self, params:Dict[str, Tensor]=None) -> None:
-        self._params = {} if params is None else params
+    def __init__(self, params:List[Tensor]=None) -> None:
+        self.params = [] if params is None else params
 
-    @property
-    def params(self):
-        return self._params
-
-    @params.setter
-    def params(self, new_params):
-        self._params = new_params
+        self._check_requires_grad()
 
     def forward(self, inputs:Tensor) -> Tensor:
         """
@@ -31,6 +25,15 @@ class Layer():
         """
 
         raise NotImplementedError
+
+    def _check_requires_grad(self):
+        """
+        Checks if all parameter Tensors of a layer have 'requires_grad'
+        attribute set to 'True'.
+        """
+
+        for param in self.params:
+            assert param.requires_grad, "Layer contains parameter with requires_grad set to False."
 
 
 class NeuralNet():
@@ -50,7 +53,7 @@ class NeuralNet():
         """
 
         for layer in self.layers:
-            for param in layer.params.values():
+            for param in layer.params:
                 yield param
 
     def forward(self, inputs:Tensor) -> Tensor:
@@ -66,27 +69,26 @@ class NeuralNet():
 
 class Linear(Layer):
     def __init__(self, in_features:int, out_features:int) -> None:
-        params = {}
-        params['w'] = Tensor(
-            data = np.random.randn(in_features, out_features)
+        self.w = Tensor(
+            data = np.random.randn(in_features, out_features),
+            requires_grad=True
         )
-        params['b'] = Tensor(
-            data = np.random.randn(out_features)
+        self.b = Tensor(
+            data = np.random.randn(out_features),
+            requires_grad=True
         )
+        params = [self.w, self.b]
 
         super().__init__(params)
 
     def forward(self, inputs:Tensor) -> Tensor:
         """
         Given a batch of Tensors 'inputs' of shape (batch_size, in_features),
-        returns the Tensor 
-
-            inputs @ self.params['w'] + self.params['b'],
-        
-        which has shape (batch_size, out_features.)
+        returns the Tensor (batch_size, out_features) by applying an affine
+        linear transformation to each feature in the batch.
         """
 
-        return inputs @ self.params['w'] + self.params['b']
+        return inputs @ self.w + self.b
 
 
 class Conv1d(Layer):
