@@ -40,14 +40,14 @@ class SGD(Optimizer):
     def __init__(self,
                  params:Iterable[Tensor],
                  lr:float) -> None:
-        super().__init__(params, lr)
+        super().__init__(list(params), lr)
 
     def step(self) -> None:
         """
         The SGD update rule is given by:
 
-            new_param = param - lr * param.grad.
+            new_param.data = param.data - lr * param.grad.data.
         """
 
         for param in self.params:
-            param -= self.lr*param.grad
+            param.data -= self.lr * param.grad.data
