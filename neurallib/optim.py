@@ -21,7 +21,7 @@ class Optimizer():
         or 0.001.
         """
 
-        self.params = params
+        self.params = list(params)
         self.lr = lr
 
     def step(self) -> None:
@@ -40,7 +40,7 @@ class SGD(Optimizer):
     def __init__(self,
                  params:Iterable[Tensor],
                  lr:float) -> None:
-        super().__init__(list(params), lr)
+        super().__init__(params, lr)
 
     def step(self) -> None:
         """
