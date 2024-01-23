@@ -1,4 +1,4 @@
-from typing import Dict, List, Generator
+from typing import List, Generator
 
 import numpy as np
 
@@ -16,7 +16,8 @@ class Layer():
     def __init__(self, params:List[Tensor]=None) -> None:
         self.params = [] if params is None else params
 
-        self._check_requires_grad()
+        for param in self.params:
+            assert param.requires_grad, "Layer contains parameter with requires_grad set to False."
 
     def forward(self, inputs:Tensor) -> Tensor:
         """
@@ -25,15 +26,6 @@ class Layer():
         """
 
         raise NotImplementedError
-
-    def _check_requires_grad(self):
-        """
-        Checks if all parameter Tensors of a layer have 'requires_grad'
-        attribute set to 'True'.
-        """
-
-        for param in self.params:
-            assert param.requires_grad, "Layer contains parameter with requires_grad set to False."
 
 
 class NeuralNet():
@@ -48,7 +40,7 @@ class NeuralNet():
 
     def parameters(self) -> Generator[Tensor, None, None]:
         """
-        Returns an generator object containing all parameters
+        Returns a generator object, which contains all parameters
         of the neural network.
         """
 
