@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from tensor import Tensor
+from amlgrad.neurallib.tensor import Tensor
 
 
 class Optimizer():
@@ -40,7 +40,7 @@ class SGD(Optimizer):
     def __init__(self,
                  params:Iterable[Tensor],
                  lr:float) -> None:
-        super().__init__(self, params, lr)
+        super().__init__(params, lr)
 
     def step(self) -> None:
         """

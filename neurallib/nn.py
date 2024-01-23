@@ -2,7 +2,7 @@ from typing import Dict, List, Generator
 
 import numpy as np
 
-from tensor import Tensor
+from amlgrad.neurallib.tensor import Tensor
 
 
 class Layer():
@@ -44,11 +44,21 @@ class NeuralNet():
         self.layers = [] if layers is None else layers
 
     def parameters(self) -> Generator[Tensor, None, None]:
+        """
+        Returns an generator object containing all parameters
+        of the neural network.
+        """
+
         for layer in self.layers:
             for param in layer.params.values():
                 yield param
 
     def forward(self, inputs:Tensor) -> Tensor:
+        """
+        Propagates the input through the layers in the neural network
+        and returns the resulting Tensor.
+        """
+
         for layer in self.layers:
             inputs = layer.forward(inputs)
         return inputs
@@ -69,7 +79,10 @@ class Linear(Layer):
     def forward(self, inputs:Tensor) -> Tensor:
         """
         Given a batch of Tensors 'inputs' of shape (batch_size, in_features),
-        returns the Tensor input @ self.params['w'] + self.params['b'],
+        returns the Tensor 
+
+            inputs @ self.params['w'] + self.params['b'],
+        
         which has shape (batch_size, out_features.)
         """
 
@@ -86,7 +99,7 @@ class ReLU(Layer):
     """
 
     def __init__(self) -> None:
-        super().__init__(self)
+        super().__init__()
 
     def forward(self, inputs:Tensor) -> Tensor:
         """

@@ -1,4 +1,4 @@
-from tensor import Tensor
+from amlgrad.neurallib.tensor import Tensor
 
 
 class Loss():
