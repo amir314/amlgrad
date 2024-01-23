@@ -93,6 +93,7 @@ class Tensor:
 
         if self.grad:
             self.grad.data = np.zeros_like(self.grad.data)
+
             for child in self.children:
                 child.zero_grad()
 
@@ -495,7 +496,7 @@ def tensor_relu(t:'Tensor') -> 'Tensor':
     """
 
     out_data = t.data * (t.data > 0)
-    out_requires_grad = t.requires_grad
+    out_requires_grad = True
     out_op = 'ReLU'
     out_children = set([t])
 
@@ -515,7 +516,7 @@ def tensor_relu(t:'Tensor') -> 'Tensor':
         """
 
         if t.requires_grad:
-            t.grad.data += (t.data > 0)
+            t.grad.data += out.grad.data * (t.data > 0)
             t.grad_func()
 
     out.grad_func = grad_func
