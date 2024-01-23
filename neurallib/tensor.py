@@ -52,6 +52,9 @@ class Tensor:
     def __mul__(self, other:'Tensor') -> 'Tensor':
         return tensor_mul(self, other)
 
+    def __matmul__(self, other:'Tensor') -> 'Tensor':
+        return tensor_matmul(self, other)
+
     def relu(self) -> 'Tensor':
         """
         Applies the ReLU (Rectified Linear Unit) function to a Tensor element-wise
