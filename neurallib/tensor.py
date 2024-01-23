@@ -40,11 +40,17 @@ class Tensor:
     def __repr__(self):
         return f"Tensor(data={self.data}, requires_grad={self.requires_grad})"
 
+    def __neg__(self):
+        return Tensor(-1) * self
+
     def __add__(self, other:'Tensor') -> 'Tensor':
         return tensor_add(self, other)
 
     def __sub__(self, other:'Tensor') -> 'Tensor':
-        return tensor_sub(self, other)
+        return self + (-other)
+    
+    def __rsub__(self, other:'Tensor') -> 'Tensor':
+        return other + (-self)
 
     def __pow__(self, a:float) -> 'Tensor':
         return tensor_pow(self, a)
@@ -205,68 +211,6 @@ def tensor_add(t1:'Tensor', t2:'Tensor') -> 'Tensor':
 
         if t2.requires_grad:
             grad = out.grad.data * np.ones_like(out.grad.data)
-            excess_dims = len(grad.shape) - len(t2.shape) # len(t2.shape) <= len(out.shape)
-
-            # Sum out excess dims
-            if excess_dims > 0:
-                for _ in range(excess_dims):
-                    grad = np.sum(grad, axis=0)
-
-            # Sum across all dimensions that were broadcasted
-            for dim, n in enumerate(t2.shape):
-                if grad.shape[dim] - n > 0:
-                    grad = np.sum(grad, axis=dim, keepdims=True)
-
-            t2.grad.data += grad
-
-        for child in out.children:
-            if child.requires_grad:
-                child.grad_func()
-
-    out.grad_func = grad_func
-
-    return out
-
-def tensor_sub(t1:'Tensor', t2:'Tensor') -> 'Tensor':
-    """
-    Subracts two Tensors from each other element-wise
-    and returns the resulting Tensor.
-    """
-
-    out_data = t1.data - t2.data
-    out_requires_grad = t1.requires_grad or t2.requires_grad
-    out_op = '-'
-    out_children = set([t1, t2])
-
-    out = Tensor(out_data,
-                 out_requires_grad,
-                 out_op,
-                 out_children)
-
-    def grad_func() -> None:
-        """
-        The logic here is the same to how it is for tensor_add, except, of course,
-        a slight difference in the derivative d(out)/dt2 because of the minus sign.
-        """
-
-        if t1.requires_grad:
-            grad = out.grad.data * np.ones_like(out.grad.data)
-            excess_dims = len(grad.shape) - len(t1.shape) # len(t1.shape) <= len(out.shape)
-
-            # Sum out excess dims
-            if excess_dims > 0:
-                for _ in range(excess_dims):
-                    grad = np.sum(grad, axis=0)
-
-            # Sum over all dimensions that were broadcasted
-            for dim, n in enumerate(t1.shape):
-                if grad.shape[dim] - n > 0:
-                    grad = np.sum(grad, axis=dim, keepdims=True)
-
-            t1.grad.data += grad
-
-        if t2.requires_grad:
-            grad = out.grad.data * -1 * np.ones_like(out.grad.data)
             excess_dims = len(grad.shape) - len(t2.shape) # len(t2.shape) <= len(out.shape)
 
             # Sum out excess dims
